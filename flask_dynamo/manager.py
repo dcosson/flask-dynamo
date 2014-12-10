@@ -55,9 +55,6 @@ class Dynamo(object):
 
         :raises: ConfigurationError
         """
-        if not self.app.config['DYNAMO_TABLES']:
-            raise ConfigurationError('You must specify at least one Dynamo table to use.')
-
         if self.app.config['DYNAMO_ENABLE_LOCAL'] and not (self.app.config['DYNAMO_LOCAL_HOST'] and self.app.config['DYNAMO_LOCAL_PORT']):
             raise ConfigurationError('If you have enabled Dynamo local, you must specify the host and port.')
 
@@ -90,8 +87,6 @@ class Dynamo(object):
                     ctx.dynamo_connection = connect_to_region(self.app.config['AWS_REGION'], **kwargs)
 
             return ctx.dynamo_connection
-
-
 
 
     @property
