@@ -6,8 +6,10 @@ from os import environ
 from boto.dynamodb2.layer1 import DynamoDBConnection
 from boto.dynamodb2 import connect_to_region
 from boto.dynamodb2.table import Table
+from contextlib import contextmanager
 from flask import (
     _app_ctx_stack as stack,
+    has_app_context,
 )
 
 from .errors import ConfigurationError
@@ -58,6 +60,20 @@ class Dynamo(object):
         if self.app.config['DYNAMO_ENABLE_LOCAL'] and not (self.app.config['DYNAMO_LOCAL_HOST'] and self.app.config['DYNAMO_LOCAL_PORT']):
             raise ConfigurationError('If you have enabled Dynamo local, you must specify the host and port.')
 
+    @contextmanager
+    def app_context_with_fallback(self):
+        """ This is a context manager helper for getting app context
+        If already in an app context, this method does nothing
+        If not, creates and uses an app context from self.app as a convenience.
+        This avoids explicitly needing to use `with app.app_context()`, e.g. in
+        scripts or an interactive shell.
+        """
+        if has_app_context():
+            yield stack.top
+        else:
+            with self.app.app_context():
+                yield stack.top
+
     @property
     def connection(self):
         """
@@ -66,8 +82,7 @@ class Dynamo(object):
         This will be lazily created if this is the first time this is being
         accessed.  This connection is reused for performance.
         """
-        ctx = stack.top
-        if ctx is not None:
+        with self.app_context_with_fallback() as ctx:
             if not hasattr(ctx, 'dynamo_connection'):
                 if self.app.config['DYNAMO_ENABLE_LOCAL']:
                     ctx.dynamo_connection = DynamoDBConnection(
@@ -97,8 +112,7 @@ class Dynamo(object):
         These will be lazily initializes if this is the first time the tables
         are being accessed.
         """
-        ctx = stack.top
-        if ctx is not None:
+        with self.app_context_with_fallback() as ctx:
             if not hasattr(ctx, 'dynamo_tables'):
                 ctx.dynamo_tables = {}
                 for table in self.app.config['DYNAMO_TABLES']:

@@ -18,6 +18,20 @@ from flask.ext.dynamo.errors import ConfigurationError
 class DynamoUnitTest(TestCase):
     """ Unit level tests for the Dynamo extensions, don't actually connect to dynamo.
     """
+
+    def test_appcontext_helper_uses_existing_context_if_any(self):
+        app = Flask(__name__)
+        dynamo = Dynamo(app)
+        with app.app_context() as ctx1:
+            with dynamo.app_context_with_fallback() as ctx2:
+                self.assertEqual(ctx1, ctx2)
+
+    def test_appcontext_helper_uses_new_context_if_needed(self):
+        app = Flask(__name__)
+        dynamo = Dynamo(app)
+        with dynamo.app_context_with_fallback() as ctx:
+            self.assertEqual(ctx.app, app)
+
     @patch('flask_dynamo.manager.DynamoDBConnection')
     def test_connect_locally(self, connection_mock):
 
