@@ -74,6 +74,24 @@ class DynamoUnitTest(TestCase):
                 is_secure=True)
         self.assertEqual(connection.__class__.__name__, 'MagicMock')
 
+    @patch('flask_dynamo.manager.connect_to_region')
+    def test_connection_with_override_kwargs(self, connect_to_region_mock):
+        app = Flask(__name__)
+        app.config['DYNAMO_TABLES'] = ['Fake Table']
+        app.config['AWS_ACCESS_KEY_ID'] = 'testkey'
+        app.config['AWS_SECRET_ACCESS_KEY'] = 'testsecret'
+
+        override_kwargs = {'aws_access_key_id': 'otherkey'}
+
+        dynamo = Dynamo(app)
+        with app.app_context():
+            connection = dynamo._connection(override_kwargs)
+        connect_to_region_mock.assert_called_once_with(
+                Dynamo.DEFAULT_REGION,
+                aws_access_key_id='otherkey',
+                aws_secret_access_key='testsecret',
+                is_secure=True)
+        self.assertEqual(connection.__class__.__name__, 'MagicMock')
 
 class DynamoIntegrationTest(TestCase):
     """Test our Dynamo extension end to end.

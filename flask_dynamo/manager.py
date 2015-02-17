@@ -82,26 +82,33 @@ class Dynamo(object):
         This will be lazily created if this is the first time this is being
         accessed.  This connection is reused for performance.
         """
+        return self._connection()
+
+    def _connection(self, override_kwargs=None):
         with self.app_context_with_fallback() as ctx:
             if not hasattr(ctx, 'dynamo_connection'):
-                if self.app.config['DYNAMO_ENABLE_LOCAL']:
-                    ctx.dynamo_connection = DynamoDBConnection(
-                        host=self.app.config['DYNAMO_LOCAL_HOST'],
-                        port=self.app.config['DYNAMO_LOCAL_PORT'],
-                        aws_access_key_id=self.app.config['AWS_ACCESS_KEY_ID'] or 'flask-dynamo-fakekey',
-                        aws_secret_access_key=self.app.config['AWS_SECRET_ACCESS_KEY'] or 'fakesecret',
-                        is_secure=False
-                    )
-                else:
-                    kwargs = {}
-                    kwargs['is_secure'] = True
-                    if self.app.config['AWS_ACCESS_KEY_ID']:
-                        kwargs['aws_access_key_id'] = self.app.config['AWS_ACCESS_KEY_ID']
-                    if self.app.config['AWS_SECRET_ACCESS_KEY']:
-                        kwargs['aws_secret_access_key'] = self.app.config['AWS_SECRET_ACCESS_KEY']
-                    ctx.dynamo_connection = connect_to_region(self.app.config['AWS_REGION'], **kwargs)
-
+                ctx.dynamo_connection = self._create_new_connection(override_kwargs)
             return ctx.dynamo_connection
+
+    def _create_new_connection(self, override_kwargs=None):
+        if self.app.config['DYNAMO_ENABLE_LOCAL']:
+            return DynamoDBConnection(
+                host=self.app.config['DYNAMO_LOCAL_HOST'],
+                port=self.app.config['DYNAMO_LOCAL_PORT'],
+                aws_access_key_id=self.app.config['AWS_ACCESS_KEY_ID'] or 'flask-dynamo-fakekey',
+                aws_secret_access_key=self.app.config['AWS_SECRET_ACCESS_KEY'] or 'fakesecret',
+                is_secure=False
+            )
+        else:
+            kwargs = {}
+            kwargs['is_secure'] = True
+            if self.app.config['AWS_ACCESS_KEY_ID']:
+                kwargs['aws_access_key_id'] = self.app.config['AWS_ACCESS_KEY_ID']
+            if self.app.config['AWS_SECRET_ACCESS_KEY']:
+                kwargs['aws_secret_access_key'] = self.app.config['AWS_SECRET_ACCESS_KEY']
+            if override_kwargs:
+                kwargs.update(override_kwargs)
+            return connect_to_region(self.app.config['AWS_REGION'], **kwargs)
 
 
     @property
